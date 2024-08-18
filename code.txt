@@ -1,0 +1,105 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// Replace with your network credentials
+const char* ssid = "your network name";
+const char* password = "your network password";
+
+// OLED display settings
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1 // Reset pin not used
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+ESP8266WebServer server(80);
+
+void setup() {
+  Serial.begin(115200);
+
+  // Initialize the OLED display
+  if (!display.begin(SSD1306_PAGEADDR, 0x3C)) { // Ensure this address is correct
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;); // Infinite loop if display initialization fails
+  }
+  display.display(); // Show initial splash screen
+  delay(2000); // Pause for 2 seconds
+  display.clearDisplay(); // Clear the buffer
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnected to Wi-Fi");
+
+  // Display connection status on OLED
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0,0);
+  display.print("\nRAKHI GREETINGS\n");
+  display.print("\nSEND AT IP:\n");
+  display.println(WiFi.localIP());
+  display.display();
+
+  // Define web server routes
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/display", HTTP_GET, handleDisplay);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void loop() {
+  server.handleClient();
+}
+
+void handleRoot() {
+  String html = "<html><head>";
+  html += "<style>";
+  html += "body { font-family: Arial, sans-serif; text-align: center; }";
+  html += "h1 { color: #4CAF50; }";
+  html += "label { font-size: 18px; }";
+  html += "input[type='text'] { font-size: 16px; padding: 8px; width: 80%; max-width: 400px; }";
+  html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; margin: 4px 2px; cursor: pointer; }";
+  html += "</style>";
+  html += "</head><body>";
+  html += "<h1>Raksha Bandhan Greetings</h1>";
+  html += "<form action='/display'>";
+  html += "<label for='name'>Enter Your Name:</label><br>";
+  html += "<input type='text' id='name' name='name' placeholder='Your Name' required><br><br>";
+  html += "<label for='sister'>Enter Your Sister's Name:</label><br>";
+  html += "<input type='text' id='sister' name='sister' placeholder='Sister's Name' required><br><br>";
+  html += "<input type='submit' value='Submit'>";
+  html += "</form>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleDisplay() {
+  String name = server.arg("name");
+  String sister = server.arg("sister");
+
+  display.clearDisplay(); // Clear screen before displaying new information
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0,0);
+
+  // Print names
+  display.println("HAPPY RAKSHA BANDHAN");
+  display.println("..........x.........\n");
+  display.println(name);
+  display.println("        AND     ");
+  display.println(sister);
+  
+
+  display.display();
+
+  server.send(200, "text/html", "<html><body><h1>Greeting Sent!</h1><a href='/'>Go Back</a></body></html>");
+}
